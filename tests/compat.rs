@@ -62,16 +62,23 @@ fn matches_scipy_goldens() {
         let file_list: Vec<&str> = files.split(',').collect();
 
         let (stat, p) = run(&file_list, mode, center, pct);
-        assert!(
-            rel(stat, want_stat) <= 1e-13,
-            "{id} statistic: got {stat}, want {want_stat}, rel {:e}",
-            rel(stat, want_stat)
-        );
-        assert!(
-            rel(p, want_p) <= 1e-12,
-            "{id} p: got {p}, want {want_p}, rel {:e}",
-            rel(p, want_p)
-        );
+        if want_stat.is_nan() {
+            // Degenerate samples (all-constant groups, NaN inputs): scipy
+            // returns (nan, nan) and so must we.
+            assert!(stat.is_nan(), "{id} statistic: got {stat}, want nan");
+            assert!(p.is_nan(), "{id} p: got {p}, want nan");
+        } else {
+            assert!(
+                rel(stat, want_stat) <= 1e-13,
+                "{id} statistic: got {stat}, want {want_stat}, rel {:e}",
+                rel(stat, want_stat)
+            );
+            assert!(
+                rel(p, want_p) <= 1e-12,
+                "{id} p: got {p}, want {want_p}, rel {:e}",
+                rel(p, want_p)
+            );
+        }
         checked += 1;
     }
     assert!(

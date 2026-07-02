@@ -13,6 +13,12 @@ const MAXLOG: f64 = 7.097_827_128_933_84e2;
 /// Chi-squared survival function P(X > x) with `df` degrees of freedom.
 #[must_use]
 pub fn chi2_sf(df: f64, x: f64) -> f64 {
+    // A NaN statistic (0/0 from a degenerate sample) has an undefined tail;
+    // scipy returns nan. Guarding here also keeps igamc's continued fraction
+    // from never converging on a NaN argument.
+    if x.is_nan() {
+        return f64::NAN;
+    }
     if x <= 0.0 {
         return 1.0;
     }

@@ -6,3 +6,6 @@ ties	tie_a.tsv,tie_b.tsv,tie_c.tsv	cols	median	0.05	33.69690080713942	4.81738061
 mean3	mean_a.tsv,mean_b.tsv,mean_c.tsv	cols	mean	0.05	13.593959520416409	0.0011171441008274415
 trim3	trim_a.tsv,trim_b.tsv,trim_c.tsv	cols	trimmed	0.1	35.556346950386015	1.9012418325669394e-08
 largelong	large_long.tsv	long	median	0.05	1166.2028446480426	1.5774983988055416e-252
+const	const_a.tsv,const_b.tsv	cols	median	0.05	nan	nan
+cdiff	cdiff_a.tsv,cdiff_b.tsv	cols	median	0.05	nan	nan
+nangrp	nan_a.tsv,nan_b.tsv	cols	median	0.05	nan	nan

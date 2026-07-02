@@ -153,6 +153,18 @@ pub fn fligner(groups: &[Vec<f64>], center: Center, proportiontocut: f64) -> Res
         }
     }
 
+    let df = (k - 1) as f64;
+
+    // scipy.stats.fligner defaults to nan_policy='propagate': any NaN anywhere
+    // in the input yields (nan, nan) without computing the statistic.
+    if groups.iter().flatten().any(|v| v.is_nan()) {
+        return Ok(FlignerResult {
+            statistic: f64::NAN,
+            df,
+            pvalue: f64::NAN,
+        });
+    }
+
     let ni: Vec<usize> = groups.iter().map(Vec::len).collect();
     let ntot: usize = ni.iter().sum();
 
@@ -161,6 +173,19 @@ pub fn fligner(groups: &[Vec<f64>], center: Center, proportiontocut: f64) -> Res
     for g in groups {
         let c = center_of(g, center, proportiontocut)?;
         pooled.extend(g.iter().map(|&y| (y - c).abs()));
+    }
+
+    // Zero spread: all pooled deviations equal ⇒ all ranks, hence all normal
+    // scores, are equal ⇒ var(scores)=0 and the statistic is 0/0. scipy yields
+    // (nan, nan) for this singular case (all-constant groups being the common
+    // trigger). Detecting it directly also avoids feeding NaN to the p-value's
+    // continued fraction.
+    if pooled.iter().all(|&d| d == pooled[0]) {
+        return Ok(FlignerResult {
+            statistic: f64::NAN,
+            df,
+            pvalue: f64::NAN,
+        });
     }
 
     let ranks = rankdata_average(&pooled);
@@ -180,7 +205,6 @@ pub fn fligner(groups: &[Vec<f64>], center: Center, proportiontocut: f64) -> Res
     }
 
     let statistic = numer / v2;
-    let df = (k - 1) as f64;
     let pvalue = chi2_sf(df, statistic);
 
     Ok(FlignerResult {
@@ -217,5 +241,42 @@ mod tests {
         let r = fligner(&[a, b], Center::Median, 0.05).unwrap();
         assert_eq!(r.df, 1.0);
         assert!(r.statistic > 0.0 && r.pvalue >= 0.0 && r.pvalue <= 1.0);
+    }
+
+    // scipy.stats.fligner([3,3,3],[3,3,3]) == (nan, nan): all-constant groups
+    // give zero pooled spread. The pre-fix version hung forever here.
+    #[test]
+    fn constant_groups_are_nan() {
+        let r = fligner(
+            &[vec![3.0, 3.0, 3.0], vec![3.0, 3.0, 3.0]],
+            Center::Median,
+            0.05,
+        )
+        .unwrap();
+        assert!(r.statistic.is_nan() && r.pvalue.is_nan());
+    }
+
+    // scipy.stats.fligner([1,1,1],[2,2,2]) == (nan, nan).
+    #[test]
+    fn distinct_constant_groups_are_nan() {
+        let r = fligner(
+            &[vec![1.0, 1.0, 1.0], vec![2.0, 2.0, 2.0]],
+            Center::Median,
+            0.05,
+        )
+        .unwrap();
+        assert!(r.statistic.is_nan() && r.pvalue.is_nan());
+    }
+
+    // scipy nan_policy='propagate' (the default): any NaN input → (nan, nan).
+    #[test]
+    fn nan_input_propagates() {
+        let r = fligner(
+            &[vec![1.0, 2.0, f64::NAN, 4.0], vec![2.0, 4.0, 6.0, 8.0]],
+            Center::Median,
+            0.05,
+        )
+        .unwrap();
+        assert!(r.statistic.is_nan() && r.pvalue.is_nan());
     }
 }
